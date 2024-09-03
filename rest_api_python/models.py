@@ -5,7 +5,7 @@ import os
 DB_HOST = 'localhost'
 DB_USER = 'root'
 DB_PASSWORD = ''
-DB_NAME = 'penelitian'
+DB_NAME = 'db_rest_api_python'
 
 # Koneksi ke database
 mydb = mysql.connector.connect(
@@ -19,62 +19,60 @@ mydb = mysql.connector.connect(
 cursor = mydb.cursor()
 
 # Membuat tabel produk jika belum ada
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS produk (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nama VARCHAR(255),
-    harga INT
-)
-''')
+cursor.execute("""
+            CREATE TABLE IF NOT EXISTS items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL
+            )
+        """)
 
-class Produk:
-    def __init__(self, id=None, nama=None, harga=None):
+class Item:
+    def __init__(self, id=None, nama=None):
         self.id = id
         self.nama = nama
-        self.harga = harga
 
     def semua():
-        cursor.execute("SELECT * FROM produk")
+        cursor.execute("SELECT * FROM items")
         hasil = cursor.fetchall()
-        produk = []
+        item = []
         for row in hasil:
-            produk.append(Produk(row[0], row[1], row[2]))
-        return produk
+            item.append(Item(row[0], row[1], row[2]))
+        return item
 
     def cari(id):
-        cursor.execute("SELECT * FROM produk WHERE id = %s", (id,))
+        cursor.execute("SELECT * FROM items WHERE id = %s", (id,))
         row = cursor.fetchone()
         if row:
-            return Produk(row[0], row[1], row[2])
+            return Item(row[0], row[1], row[2])
         else:
             return None
         
-    def tambah(nama, harga):
+    def tambah(name):
         cursor = mydb.cursor()
-        cursor.execute("INSERT INTO produk (nama, harga) VALUES (%s, %s)", (nama, harga))
+        cursor.execute("INSERT INTO items (name) VALUES (%s)", (name,))
         mydb.commit()
-        return cursor.lastrowid  # Mengembalikan ID produk yang baru ditambahkan
+        return cursor.lastrowid  # Mengembalikan ID item yang baru ditambahkan
 
-    def ubah(id, nama_baru, harga_baru):
+    def ubah(id, nama_baru):
         cursor = mydb.cursor()
-        cursor.execute("UPDATE produk SET nama = %s, harga = %s WHERE id = %s", (nama_baru, harga_baru, id))
+        cursor.execute("UPDATE items SET name = %s WHERE id = %s", (nama_baru, id))
         mydb.commit()
         return cursor.rowcount  # Mengembalikan jumlah baris yang terpengaruh (0 atau 1)
 
     def hapus(id):
         cursor = mydb.cursor()
-        cursor.execute("DELETE FROM produk WHERE id = %s", (id,))
+        cursor.execute("DELETE FROM items WHERE id = %s", (id,))
         mydb.commit()
         return cursor.rowcount  # Mengembalikan jumlah baris yang terpengaruh (0 atau 1)
  
 
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS gambar (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    filename VARCHAR(255) NOT NULL,
-    path VARCHAR(255) NOT NULL
-)
-''')
+# cursor.execute('''
+# CREATE TABLE IF NOT EXISTS gambar (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     filename VARCHAR(255) NOT NULL,
+#     path VARCHAR(255) NOT NULL
+# )
+# ''')
 
 class Gambar:
     def __init__(self, id=None, filename=None, path=None):

@@ -5,25 +5,25 @@ import json
 import urllib.parse
 import cgi
 import os
-from models import Produk
+from models import Item
 from models import Gambar
 
 class SimpleRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == '/produk':
-            produk = Produk.semua()
+        if self.path == '/items':
+            item = Item.semua()
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps([p.__dict__ for p in produk]).encode())
-        elif self.path.startswith('/produk/'):
-            id_produk = int(self.path.split('/')[-1])
-            produk = Produk.cari(id_produk)
-            if produk:
+            self.wfile.write(json.dumps([p.__dict__ for p in item]).encode())
+        elif self.path.startswith('/items/'):
+            id_item = int(self.path.split('/')[-1])
+            item = Item.cari(id_item)
+            if item:
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps(produk.__dict__).encode())
+                self.wfile.write(json.dumps(item.__dict__).encode())
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -32,72 +32,122 @@ class SimpleRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
-        if self.path == '/produk':
+        if self.path == '/items':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
-            post_data = urllib.parse.unquote_plus(post_data.decode('utf-8'))
-            data_dict = {}
-            for item in post_data.split('&'):
-                key, value = item.split('=')
-                data_dict[key] = value
+            content_type = self.headers.get('Content-Type')
 
-            nama_produk = data_dict.get('nama')
-            harga_produk = int(data_dict.get('harga'))
+            if content_type.startswith('multipart/form-data'):
+                # Tangani multipart/form-data
+                fields = cgi.FieldStorage(
+                    fp=self.rfile,
+                    headers=self.headers,
+                    environ={'REQUEST_METHOD': 'POST',
+                            'CONTENT_TYPE': self.headers['Content-Type'],
+                            })
 
-            if nama_produk and harga_produk:
-                # Gunakan metode tambah() dari model Produk
-                id_produk_baru = Produk.tambah(nama_produk, harga_produk)
+                nama_item = fields.getfirst("name") 
+
+            elif content_type == 'text/plain':
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data_dict = {}
+                for item in post_data.decode('utf-8').split('&'):
+                    key, value = item.split('=')
+                    data_dict[key] = value
+
+                nama_item = data_dict.get('name') 
+
+            elif content_type == 'application/json':
+                data_dict = json.loads(post_data.decode('utf-8'))
+                nama_item = data_dict.get('name')
+
+            else:
+                self.send_response(400) 
+                self.end_headers()
+                return
+
+            if nama_item:
+                id_item_baru = Item.tambah(nama_item)
                 self.send_response(201)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({'id': id_produk_baru}).encode()) 
+                self.wfile.write(json.dumps({'id': id_item_baru}).encode()) 
             else:
-                self.send_response(400)  # Bad Request
+                self.send_response(400) 
                 self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_PUT(self):
-        if self.path.startswith('/produk/'):
-            id_produk = int(self.path.split('/')[-1])
+        if self.path.startswith('/items/'):
+            id_item = int(self.path.split('/')[-1])
 
-            content_length = int(self.headers['Content-Length'])
-            put_data = self.rfile.read(content_length)
-            put_data = urllib.parse.unquote_plus(put_data.decode('utf-8'))
-            data_dict = {}
-            for item in put_data.split('&'):
-                key, value = item.split('=')
-                data_dict[key] = value
+            content_type = self.headers.get('Content-Type')
 
-            nama_produk_baru = data_dict.get('nama')
-            harga_produk_baru = int(data_dict.get('harga'))
+            if content_type.startswith('multipart/form-data'):
+                # Tangani multipart/form-data
+                fields = cgi.FieldStorage(
+                    fp=self.rfile,
+                    headers=self.headers,
+                    environ={'REQUEST_METHOD': 'PUT',
+                            'CONTENT_TYPE': self.headers['Content-Type'],
+                            })
 
-            if nama_produk_baru and harga_produk_baru:
-                # Gunakan metode ubah() dari model Produk
-                jumlah_baris_terpengaruh = Produk.ubah(id_produk, nama_produk_baru, harga_produk_baru)
-                if jumlah_baris_terpengaruh > 0:
-                    self.send_response(200)  # OK
+                nama_item_baru = fields.getfirst("name", "")
+
+                if nama_item_baru:
+                    jumlah_baris_terpengaruh = Item.ubah(id_item, nama_item_baru)
+                    if jumlah_baris_terpengaruh > 0:
+                        self.send_response(200)  # OK
+                    else:
+                        self.send_response(404)  # Not Found (jika item tidak ditemukan)
+                    self.end_headers()
                 else:
-                    self.send_response(404)  # Not Found (jika produk tidak ditemukan)
-                self.end_headers()
+                    self.send_response(400)  # Bad Request
+                    self.end_headers()
+
+            elif content_type == 'text/plain':
+                content_length = int(self.headers['Content-Length'])
+                put_data = self.rfile.read(content_length)
+                put_data = urllib.parse.unquote_plus(put_data.decode('utf-8'))
+                data_dict = {}
+                for item in put_data.split('&'):
+                    key, value = item.split('=')
+                    data_dict[key] = value
+
+                nama_item_baru = data_dict.get('name')
+
+                if nama_item_baru:
+                    jumlah_baris_terpengaruh = Item.ubah(id_item, nama_item_baru)
+                    if jumlah_baris_terpengaruh > 0:
+                        self.send_response(200)  # OK
+                    else:
+                        self.send_response(404)  # Not Found (jika item tidak ditemukan)
+                    self.end_headers()
+                else:
+                    self.send_response(400)  # Bad Request
+                    self.end_headers()
+
             else:
                 self.send_response(400)  # Bad Request
                 self.end_headers()
+
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_DELETE(self):
-        if self.path.startswith('/produk/'):
-            id_produk = int(self.path.split('/')[-1])
+        if self.path.startswith('/items/'):
+            id_item = int(self.path.split('/')[-1])
 
-            # Gunakan metode hapus() dari model Produk
-            jumlah_baris_terpengaruh = Produk.hapus(id_produk)
+            # Gunakan metode hapus() dari model Item
+            jumlah_baris_terpengaruh = Item.hapus(id_item)
             if jumlah_baris_terpengaruh > 0:
                 self.send_response(204)  # No Content
             else:
-                self.send_response(404)  # Not Found (jika produk tidak ditemukan)
+                self.send_response(404)  # Not Found (jika item tidak ditemukan)
             self.end_headers()
         else:
             self.send_response(404)
